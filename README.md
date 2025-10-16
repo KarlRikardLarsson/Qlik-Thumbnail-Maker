@@ -1,4 +1,4 @@
-<img width="321" height="258" alt="image" src="https://github.com/user-attachments/assets/53dab258-0c42-48ac-af71-eb0c54d39b4f" /># Qlik Thumbnail Maker
+# Qlik Thumbnail Maker
 
 A lightweight **HTML tool** for creating clean 16:9 thumbnails (PNG/SVG) for Qlik Sense apps.  
 Inspired by Qlik’s own app icons, with support for **Google Material Symbols** and **Heroicons**.
