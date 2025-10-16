@@ -24,5 +24,5 @@ Inspired by Qlik’s own app icons, with support for **Google Material Symbols**
 ## Usage
 1. Clone or download this repository:
    ```bash
-   git clone https://github.com/<your-username>/qlik-thumbnail-maker.git
+   git clone https://github.com/KarlRikardLarsson/qlik-thumbnail-maker.git
    cd qlik-thumbnail-maker
