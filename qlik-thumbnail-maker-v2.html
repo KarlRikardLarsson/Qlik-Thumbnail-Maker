@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Qlik Thumbnail Maker — 16:9 exports (PNG/SVG)</title>
+<style>
+  :root{
+    --bg:#F8FAFC;
+    --panel:#fff;
+    --border:#e5e7eb;
+    --muted:#64748b;
+    --ink:#111827;
+    --btn:#0f172a;
+    --btn-ink:#fff;
+  }
+  html,body{margin:0;padding:0;background:var(--bg);color:#111827;font:14px/1.4 system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji","Segoe UI Emoji";}
+  h1{font-size:16px;margin:12px 0;font-weight:700}
+  a{color:#1d4ed8;text-decoration:none}
+  .wrap{display:grid;grid-template-columns:340px 1fr 320px;gap:16px;padding:12px 16px 24px;align-items:start}
+  .section{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:12px}
+  .section h3{margin:0 0 8px;font-size:12px;color:#475569;letter-spacing:.02em;text-transform:uppercase}
+  #left .section + .section{margin-top:12px}
+  #right{display:flex;flex-direction:column;gap:12px}
+  .field{display:flex;flex-direction:column;gap:6px;margin-bottom:10px}
+  .row3{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+  .row2{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+  input[type="number"], input[type="text"], select{height:32px;padding:6px 8px;border:1px solid var(--border);border-radius:8px;background:#fff}
+  input[type="color"]{height:32px;border:1px solid var(--border);border-radius:8px;padding:0}
+  .btn{height:36px;border:none;border-radius:10px;padding:0 12px;background:#fff;border:1px solid var(--border);cursor:pointer}
+  .btn.dark{background:var(--btn);color:var(--btn-ink);border-color:#0b1220}
+  .btn:hover{filter:brightness(0.98)}
+  .icon-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+  .icon-grid .btn{padding:8px;display:flex;align-items:center;justify-content:center}
+  .pillbar{display:flex;gap:8px;flex-wrap:wrap}
+  .pill{border-radius:999px;border:1px solid var(--border);padding:6px 10px;cursor:pointer;background:#fff}
+  .pill:hover{filter:brightness(0.98)}
+  #previewCard{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:12px}
+  #canvasWrap{background:#f2f2f2;border-radius:8px;border:1px solid #eaedf0;display:flex;align-items:center;justify-content:center;min-height:420px}
+  #c{max-width:100%;height:auto;display:block}
+  .small{font-size:12px;color:var(--muted)}
+  .inline{display:flex;align-items:center;gap:8px}
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div id="left">
+      <div class="section">
+        <h3>Icon (paste SVG)</h3>
+        <div class="small">Paste an SVG icon (e.g., from Google Material Symbols)</div>
+        <textarea id="svgInput" rows="8" style="width:100%;resize:vertical;border:1px solid var(--border);border-radius:8px;padding:8px;font-family:ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;"></textarea>
+        <div class="small" style="margin-top:6px;">Tip: copy the <code>&lt;svg ...&gt;...&lt;/svg&gt;</code> snippet directly.</div>
+      </div>
+
+      <div class="section">
+        <h3>Layout</h3>
+        <div class="small" style="margin-bottom:6px;">Quick icon library</div>
+        <div id="iconLib" class="icon-grid"></div>
+      </div>
+
+      <div class="section">
+        <h3>Export</h3>
+        <div class="row2">
+          <button class="btn dark" id="pngBtn">Export PNG</button>
+          <button class="btn" id="svgBtn">Export SVG</button>
+        </div>
+        <div class="inline small" style="margin-top:8px">Recommended: PNG at 800×450 for Qlik app thumbnails.</div>
+      </div>
+    </div>
+
+    <div id="center">
+      <div id="previewCard">
+        <div class="small" style="margin:0 0 6px;">Preview</div>
+        <div id="canvasWrap">
+          <canvas id="c" width="1200" height="675"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <aside id="right">
+      <div class="section">
+        <h3>Appearance</h3>
+        <div class="row2">
+          <div class="field"><label>Background</label><input type="color" id="bg" value="#F2F2F2"></div>
+          <div class="field"><label>Outline color</label><input type="color" id="outlineColor" value="#9CA3AF"></div>
+        </div>
+        <div class="row3">
+          <div class="field"><label>Outline radius</label><input type="number" id="outlineRadius" value="42" min="0" max="120"></div>
+          <div class="field"><label>Outline width</label><input type="number" id="outlineWidth" value="0" min="0" max="80"></div>
+          <div class="field"><label>&nbsp;</label><label class="inline"><input type="checkbox" id="autoOutline"> Auto (1.6% of shorter side)</label></div>
+        </div>
+      </div>
+
+      <div class="section">
+        <h3>Icon</h3>
+        <div class="row3">
+          <div class="field"><label>Accent color</label><input type="color" id="accent" value="#53555A"></div>
+          <div class="field"><label>Color mode</label>
+            <select id="iconMode">
+              <option value="fill" selected>Fill</option>
+              <option value="stroke">Stroke</option>
+            </select>
+          </div>
+          <div class="field"><label>Icon scale (0.1–2)</label><input type="number" id="iconScale" step="0.1" min="0.1" max="2" value="1.0"></div>
+        </div>
+        <label class="inline small" style="margin-top:4px"><input type="checkbox" id="iconShadow"> Icon drop shadow</label>
+        <div class="small" style="margin-top:8px">Color presets:</div>
+        <div id="colorPresets" class="pillbar" style="margin-top:6px"></div>
+      </div>
+
+      <div class="section">
+        <h3>Canvas</h3>
+        <div class="row3">
+          <div class="field"><label>Canvas width</label><input type="number" id="w" value="800" min="100" max="4000"></div>
+          <div class="field"><label>Canvas height</label><input type="number" id="h" value="450" min="100" max="4000"></div>
+          <div class="field"><label>Padding</label><input type="number" id="pad" value="56" min="0" max="400"></div>
+        </div>
+        <label class="inline small"><input type="checkbox" id="autoPad" checked> Auto (7% of shorter side)</label>
+      </div>
+
+      <div class="section">
+        <h3>Actions</h3>
+        <div class="row2">
+          <button class="btn dark" id="renderBtn">Render</button>
+          <button class="btn" id="resetBtn">Reset defaults</button>
+        </div>
+      </div>
+    </aside>
+  </div>
+
+<script>
+// ---------- Quick icon library (your set) ----------
+const ICONS = [
+  // 1 Bars
+  `<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#e3e3e3"><path d="M80-120v-80h800v80H80Zm40-120v-280h120v280H120Zm200 0v-480h120v480H320Zm200 0v-360h120v360H520Zm200 0v-600h120v600H720Z"/></svg>`,
+  // 2 Trend + check (DEFAULT)
+  `<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#e3e3e3"><path d="M320-414v-306h120v306l-60-56-60 56Zm200 60v-526h120v406L520-354ZM120-216v-344h120v224L120-216Zm0 98 258-258 142 122 224-224h-64v-80h200v200h-80v-64L524-146 382-268 232-118H120Z"/></svg>`,
+  // 3 Connector/path
+  `<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#e3e3e3"><path d="M120-240q-33 0-56.5-23.5T40-320q0-33 23.5-56.5T120-400h10.5q4.5 0 9.5 2l182-182q-2-5-2-9.5V-600q0-33 23.5-56.5T400-680q33 0 56.5 23.5T480-600q0 2-2 20l102 102q5-2 9.5-2h21q4.5 0 9.5 2l142-142q-2-5-2-9.5V-640q0-33 23.5-56.5T840-720q33 0 56.5 23.5T920-640q0 33-23.5 56.5T840-560h-10.5q-4.5 0-9.5-2L678-420q2 5 2 9.5v10.5q0 33-23.5 56.5T600-320q-33 0-56.5-23.5T520-400v-10.5q0-4.5 2-9.5L420-522q-5 2-9.5 2H400q-2 0-20-2L198-340q2 5 2 9.5v10.5q0 33-23.5 56.5T120-240Z"/></svg>`,
+  // 4 House/warehouse
+  `<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#e3e3e3"><path d="M760-400v-260L560-800 360-660v60h-80v-100l280-200 280 200v300h-80ZM560-800Zm20 160h40v-40h-40v40Zm-80 0h40v-40h-40v40Zm80 80h40v-40h-40v40Zm-80 0h40v-40h-40v40ZM280-220l278 76 238-74q-5-9-14.5-15.5T760-240H558q-27 0-43-2t-33-8l-93-31 22-78 81 27q17 5 40 8t68 4q0-11-6.5-21T578-354l-234-86h-64v220ZM40-80v-440h304q7 0 14 1.5t13 3.5l235 87q33 12 53.5 42t20.5 66h80q50 0 85 33t35 87v40L560-60l-280-78v58H40Zm80-80h80v-280h-80v280Z"/></svg>`,
+  // 5 Columns
+  `<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#e3e3e3"><path d="M200-120q-33 0-56.5-23.5T120-200v-640h80v640h640v80H200Zm40-120v-360h160v360H240Zm200 0v-560h160v560H440Zm200 0v-200h160v200H640Z"/></svg>`,
+  // 6 Growth bars + line
+  `<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#e3e3e3"><path d="M120-120v-80l80-80v160h-80Zm160 0v-240l80-80v320h-80Zm160 0v-320l80 81v239h-80Zm160 0v-239l80-80v319h-80Zm160 0v-400l80-80v480h-80ZM120-327v-113l280-280 160 160 280-280v113L560-447 400-607 120-327Z"/></svg>`,
+  // 7 Spark/atoms
+  `<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#e3e3e3"><path d="M480-520q-50 0-85-35t-35-85q0-50 35-85t85-35q50 0 85 35t35 85q0 50-35 85t-85 35Zm0-80q17 0 28.5-11.5T520-640q0-17-11.5-28.5T480-680q-17 0-28.5 11.5T440-640q0 17 11.5 28.5T480-600ZM240-280v-76q0-21 10.5-39.5T279-425q45-26 95-40.5T480-480q56 0 106 14.5t95 40.5q18 11 28.5 29.5T720-356v76H240Zm240-120q-41 0-80 10t-74 30h308q-35-20-74-30t-80-10Zm369-234q-31-73-86.5-128.5T634-849l31-74q88 36 154.5 103T923-665l-74 31Zm-738 0-74-31q37-88 103.5-154.5T295-923l31 74q-73 31-128.5 86.5T111-634ZM295-37q-88-36-154.5-103T37-295l74-31q31 73 86.5 128.5T326-111l-31 74Zm370 0-31-74q73-31 128.5-86.5T849-326l74 31q-36 88-103 154.5T665-37ZM480-640Zm0 280h154-308 154Z"/></svg>`,
+  // 8 Comment/insight
+  `<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#e3e3e3"><path d="M400-440ZM120-80q-33 0-56.5-23.5T40-160v-560q0-33 23.5-56.5T120-800h320v80H120v560h560v-240h80v240q0 33-23.5 56.5T680-80H120Zm80-160h80v-280h-80v280Zm160 0h80v-400h-80v400Zm160 0h80v-160h-80v160Zm200-240q-30 0-59-9t-54-26l-15 14q-12 11-28.5 11T536-501q-11-11-11-28t11-28l16-16q-16-24-24-51t-8-56q0-83 58.5-141.5T720-880h200v200q0 83-58.5 141.5T720-480Zm0-80q50 0 85-35t35-85v-120H720q-50 0-85 35t-35 85q0 13 2.5 25t7.5 24l104-104q11-11 28-11t28 11q12 12 12 28.5T770-678L666-574q13 6 26.5 10t27.5 4Zm-6-119Z"/></svg>`,
+  // 9 Home/stack
+  `<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#e3e3e3"><path d="M200-120v-406L88-440l-48-64 440-336 440 336-48 64-112-86v406h-80v-400H280v400h-80Zm120-40v-80h320v80H320Zm0-120v-80h320v80H320Zm0-120v-80h320v80H320Zm-23-200h366L480-739 297-600Z"/></svg>`,
+  // 10 Zaps/levels
+  `<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#e3e3e3"><path d="M42-120v-112q0-33 17-62t47-44q51-26 115-44t141-18q77 0 141 18t115 44q30 15 47 44t17 62v112H42Zm80-80h480v-32q0-11-5.5-20T582-266q-36-18-92.5-36T362-320q-71 0-127.5 18T142-266q-9 5-14.5 14t-5.5 20v32Zm240-240q-66 0-113-47t-47-113h-10q-9 0-14.5-5.5T172-620q0-9 5.5-14.5T192-640h10q0-45 22-81t58-57v38q0 9 5.5 14.5T302-720q9 0 14.5-5.5T322-740v-54q9-3 19-4.5t21-1.5q11 0 21 1.5t19 4.5v54q0 9 5.5 14.5T422-720q9 0 14.5-5.5T442-740v-38q36 21 58 57t22 81h10q9 0 14.5 5.5T552-620q0 9-5.5 14.5T532-600h-10q0 66-47 113t-113 47Zm0-80q33 0 56.5-23.5T442-600H282q0 33 23.5 56.5T362-520Zm300 160-6-30q-6-2-11.5-4.5T634-402l-28 10-20-36 22-20v-24l-22-20 20-36 28 10q4-4 10-7t12-5l6-30h40l6 30q6 2 12 5t10 7l28-10 20 36-22 20v24l22 20-20 36-28-10q-5 5-10.5 7.5T708-390l-6 30h-40Zm20-70q12 0 21-9t9-21q0-12-9-21t-21-9q-12 0-21 9t-9 21q0 12 9 21t21 9Zm72-130-8-42q-9-3-16.5-7.5T716-620l-42 14-28-48 34-30q-2-5-2-8v-16q0-3 2-8l-34 30 28 48 42 14q6-6 13.5-10.5T746-798l8-42h56l8 42q9 3 16.5 7.5T848-780l42-14 28 48-34 30q2 5 2 8v16q0 3-2 8l34 30-28 48-42-14q-6 6-13.5 10.5T818-602l-8 42h-56Zm28-90q21 0 35.5-14.5T832-700q0-21-14.5-35.5T782-750q-21 0-35.5 14.5T732-700q0 21 14.5 35.5T782-650ZM362-200Z"/></svg>`,
+  // 11 Heart/like analytics
+  `<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#e3e3e3"><path d="M640-440 474-602q-31-30-52.5-66.5T400-748q0-55 38.5-93.5T532-880q32 0 60 13.5t48 36.5q20-23 48-36.5t60-13.5q55 0 93.5 38.5T880-748q0 43-21 79.5T807-602L640-440Zm0-112 109-107q19-19 35-40.5t16-48.5q0-22-15-37t-37-15q-14 0-26.5 5.5T700-778l-60 72-60-72q-9-11-21.5-16.5T532-800q-22 0-37 15t-15 37q0 27 16 48.5t35 40.5l109 107ZM280-220l278 76 238-74q-5-9-14.5-15.5T760-240H558q-27 0-43-2t-33-8l-93-31 22-78 81 27q17 5 40 8t68 4q0-11-6.5-21T578-354l-234-86h-64v220ZM40-80v-440h304q7 0 14 1.5t13 3.5l235 87q33 12 53.5 42t20.5 66h80q50 0 85 33t35 87v40L560-60l-280-78v58H40Zm80-80h80v-280h-80v280Zm520-546Z"/></svg>`,
+  // 12 Monitor/kanban
+  `<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#e3e3e3"><path d="M560-440q-50 0-85-35t-35-85q0-50 35-85t85-35q50 0 85 35t35 85q0 50-35 85t-85 35ZM280-320q-33 0-56.5-23.5T200-400v-320q0-33 23.5-56.5T280-800h560q33 0 56.5 23.5T920-720v320q0 33-23.5 56.5T840-320H280Zm80-80h400q0-33 23.5-56.5T840-480v-160q-33 0-56.5-23.5T760-720H360q0 33-23.5 56.5T280-640v160q33 0 56.5 23.5T360-400Zm440 240H120q-33 0-56.5-23.5T40-240v-440h80v440h680v80ZM280-400v-320 320Z"/></svg>`
+];
+
+// ---------- helpers ----------
+const $ = (id)=>document.getElementById(id);
+const controls = {
+  bg: $('bg'), outlineColor:$('outlineColor'), outlineRadius:$('outlineRadius'),
+  outlineWidth:$('outlineWidth'), autoOutline:$('autoOutline'),
+  accent:$('accent'), iconMode:$('iconMode'), iconScale:$('iconScale'), iconShadow:$('iconShadow'),
+  w:$('w'), h:$('h'), pad:$('pad'), autoPad:$('autoPad')
+};
+const canvas = $('c');
+const ctx = canvas.getContext('2d');
+const svgInput = $('svgInput');
+
+function setDefaults(){
+  controls.bg.value = '#F2F2F2';
+  controls.outlineWidth.value = 0;
+  controls.autoOutline.checked = false;
+  controls.accent.value = '#53555A';
+  controls.iconScale.value = 1.0;
+  controls.iconMode.value = 'fill';
+  controls.w.value = 800; controls.h.value = 450;
+  controls.pad.value = 56; controls.autoPad.checked = true;
+  if (ICONS[1]) svgInput.value = ICONS[1];
+}
+
+function makeIconBtn(svg){
+  const b = document.createElement('button');
+  b.className = 'btn';
+  b.innerHTML = `<span style="width:28px;height:28px;display:inline-block">${svg}</span>`;
+  b.onclick = ()=>{ svgInput.value = svg; render(); };
+  return b;
+}
+
+function initIconLib(){
+  const lib = $('iconLib'); lib.innerHTML='';
+  ICONS.forEach(s=>lib.appendChild(makeIconBtn(s)));
+}
+
+// color presets
+const presets = [
+  ['Trust',   '#3B82F6'],
+  ['Money',   '#16A34A'],
+  ['Calm',    '#14B8A6'],
+  ['Slate',   '#64748B'],
+  ['Lavender','#7C3AED'],
+  ['Amber',   '#F59E0B'],
+  ['Rose',    '#F43F5E'],
+  ['Graphite','#53555A']
+];
+function initColorPresets(){
+  const bar = $('colorPresets'); bar.innerHTML='';
+  presets.forEach(([name, val])=>{
+    const p = document.createElement('button');
+    p.className='pill'; p.textContent=name;
+    p.style.borderColor = '#e5e7eb';
+    p.onclick = ()=>{ controls.accent.value = val; render(); };
+    bar.appendChild(p);
+  });
+}
+
+// Parse SVG viewBox dimensions
+function getSvgSize(svg){
+  const m = svg.match(/viewBox="([^"]+)"/i);
+  if(!m) return {w:24,h:24};
+  const parts = m[1].trim().split(/\s+/).map(Number);
+  return {w:parts[2], h:parts[3]};
+}
+
+// recolor svg according to mode/color
+function tintSvg(svg, color, mode){
+  // ensure there's a fill or stroke; override existing
+  if (mode === 'stroke'){
+    // remove existing fill attributes (basic)
+    svg = svg.replace(/fill="[^"]*"/g, 'fill="none"');
+    svg = svg.replace(/stroke="[^"]*"/g, '');
+    svg = svg.replace('<svg ', `<svg stroke="${color}" stroke-width="72" `);
+  } else {
+    // fill
+    svg = svg.replace(/fill="[^"]*"/g, `fill="${color}"`);
+    if (!/fill="/.test(svg)) {
+      svg = svg.replace('<svg ', `<svg fill="${color}" `);
+    }
+  }
+  return svg;
+}
+
+function render(){
+  const W = Number(controls.w.value||800);
+  const H = Number(controls.h.value||450);
+  const shorter = Math.min(W,H);
+  const pad = controls.autoPad.checked ? Math.round(shorter*0.07) : Number(controls.pad.value||0);
+  const bg = controls.bg.value || '#F2F2F2';
+  const outlineColor = controls.outlineColor.value || '#9CA3AF';
+  const outlineWidth = controls.autoOutline.checked ? Math.round(shorter*0.016) : Number(controls.outlineWidth.value||0);
+  const radius = Number(controls.outlineRadius.value||42);
+  const accent = controls.accent.value || '#53555A';
+  const mode = controls.iconMode.value || 'fill';
+  const iconScale = Math.min(2, Math.max(0.1, Number(controls.iconScale.value||1.6)));
+  const dropShadow = controls.iconShadow.checked;
+
+  // resize canvas
+  canvas.width = W*1.5; canvas.height = H*1.5; // hi-DPI-ish for better PNG
+  ctx.setTransform(1,0,0,1,0,0);
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  ctx.scale(1.5,1.5);
+
+  // background fill
+  ctx.fillStyle = bg;
+  ctx.fillRect(0,0,W,H);
+
+  // optional grey card outline
+  if (outlineWidth>0){
+    const r = radius;
+    const x = pad/2, y=pad/2, w=W-pad, h=H-pad;
+    ctx.lineWidth = outlineWidth;
+    ctx.strokeStyle = outlineColor;
+    ctx.beginPath();
+    const rr = Math.min(r, w/2, h/2);
+    ctx.moveTo(x+rr,y);
+    ctx.arcTo(x+w,y,x+w,y+h,rr);
+    ctx.arcTo(x+w,y+h,x,y+h,rr);
+    ctx.arcTo(x,y+h,x,y,rr);
+    ctx.arcTo(x,y,x+w,y,rr);
+    ctx.stroke();
+  }
+
+  // draw SVG icon
+  let raw = svgInput.value.trim();
+  if (!raw) return;
+  const svgColored = tintSvg(raw, accent, mode);
+  const size = getSvgSize(raw);
+  const iw = size.w, ih=size.h;
+
+  // compute placement box
+  const boxX = pad; const boxY = pad; const boxW = W - pad*2; const boxH = H - pad*2;
+  const s = iconScale * Math.min(boxW/iw, boxH/ih);
+  const drawW = iw * s; const drawH = ih * s;
+  const dx = Math.round(boxX + (boxW - drawW)/2);
+  const dy = Math.round(boxY + (boxH - drawH)/2);
+
+  const svgBlob = new Blob([svgColored], {type:'image/svg+xml'});
+  const url = URL.createObjectURL(svgBlob);
+  const img = new Image();
+  img.onload = ()=>{
+    if (dropShadow){
+      ctx.save();
+      ctx.shadowColor = 'rgba(0,0,0,.18)';
+      ctx.shadowBlur = 14;
+      ctx.shadowOffsetY = 4;
+      ctx.drawImage(img, dx, dy, drawW, drawH);
+      ctx.restore();
+    } else {
+      ctx.drawImage(img, dx, dy, drawW, drawH);
+    }
+    URL.revokeObjectURL(url);
+  };
+  img.src = url;
+}
+
+function resetDefaults(){
+  setDefaults();
+  render();
+}
+
+// Export PNG
+$('pngBtn').onclick = ()=>{
+  const link = document.createElement('a');
+  link.download = 'qlik-thumbnail.png';
+  link.href = canvas.toDataURL('image/png');
+  link.click();
+};
+
+// Export SVG (composite: bg + optional outline + icon)
+$('svgBtn').onclick = ()=>{
+  const W = Number(controls.w.value||800);
+  const H = Number(controls.h.value||450);
+  const shorter = Math.min(W,H);
+  const pad = controls.autoPad.checked ? Math.round(shorter*0.07) : Number(controls.pad.value||0);
+  const bg = controls.bg.value || '#F2F2F2';
+  const outlineColor = controls.outlineColor.value || '#9CA3AF';
+  const outlineWidth = controls.autoOutline.checked ? Math.round(shorter*0.016) : Number(controls.outlineWidth.value||0);
+  const radius = Number(controls.outlineRadius.value||42);
+  const accent = controls.accent.value || '#53555A';
+  const mode = controls.iconMode.value || 'fill';
+  const iconScale = Math.min(2, Math.max(0.1, Number(controls.iconScale.value||1.6)));
+
+  const raw = svgInput.value.trim();
+  const size = getSvgSize(raw);
+  const iw=size.w, ih=size.h;
+  const boxW = W - pad*2, boxH = H - pad*2;
+  const s = iconScale * Math.min(boxW/iw, boxH/ih);
+  const drawW = iw*s, drawH = ih*s;
+  const dx = Math.round(pad + (boxW - drawW)/2);
+  const dy = Math.round(pad + (boxH - drawH)/2);
+
+  let outlinePath='';
+  if (outlineWidth>0){
+    outlinePath = `<rect x="${pad/2}" y="${pad/2}" width="${W-pad}" height="${H-pad}" rx="${radius}" ry="${radius}" fill="none" stroke="${outlineColor}" stroke-width="${outlineWidth}"/>`;
+  }
+
+  const iconTinted = tintSvg(raw, accent, mode)
+    .replace(/<svg[^>]*>/, m=> m.replace('viewBox', `x="${dx}" y="${dy}" width="${drawW}" height="${drawH}" viewBox`));
+
+  const svg = `<?xml version="1.0" encoding="UTF-8"?>\n<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">\n<rect width="100%" height="100%" fill="${bg}"/>\n${outlinePath}\n${iconTinted}\n</svg>`;
+  const blob = new Blob([svg], {type:'image/svg+xml'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'qlik-thumbnail.svg'; a.click();
+  setTimeout(()=>URL.revokeObjectURL(url), 5000);
+};
+
+// Bind render triggers
+['bg','outlineColor','outlineRadius','outlineWidth','autoOutline','accent','iconMode','iconScale','iconShadow','w','h','pad','autoPad']
+  .forEach(id=> $(id).addEventListener('input', render));
+
+$('renderBtn').onclick = render;
+$('resetBtn').onclick = resetDefaults;
+
+// Init
+initIconLib();
+initColorPresets();
+setDefaults();
+render();
+</script>
+</body>
+</html>
