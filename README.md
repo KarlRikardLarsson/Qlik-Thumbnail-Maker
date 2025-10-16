@@ -1,0 +1,1 @@
+# Qlik-Thumbnail-Maker
